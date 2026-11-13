@@ -1,7 +1,7 @@
 // Entry point when the site runs as a Cloudflare Worker (static files come from ./public).
-// The same handlers also run as Pages Functions from ./functions if the site is set up as Pages.
-import * as token from '../functions/api/token.js';
-import * as analyze from '../functions/api/analyze.js';
+// API routes: /api/token (Gemini Live token) and /api/analyze (AI assessment on the result page).
+import * as token from './api/token.js';
+import * as analyze from './api/analyze.js';
 
 export default {
   async fetch(request, env) {
