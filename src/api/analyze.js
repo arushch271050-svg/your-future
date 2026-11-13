@@ -1,6 +1,12 @@
 // Detailed AI assessment on the result page ("ประเมินละเอียดด้วย AI").
 // Sends the page's prompt to Gemini and returns its JSON answer. Uses the same GEMINI_API_KEY secret.
-const MODELS = ['gemini-flash-latest', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'];
+// Fast models first, no long 'thinking', and a time limit per try so the result page never hangs.
+const MODELS = [
+  { id: 'gemini-2.5-flash-lite', thinking: null },
+  { id: 'gemini-2.5-flash', thinking: { thinkingBudget: 0 } },
+  { id: 'gemini-flash-lite-latest', thinking: null },
+];
+const PER_TRY_MS = 12000;
 
 export async function onRequestPost({ request, env }) {
   const key = env.GEMINI_API_KEY;
@@ -12,13 +18,13 @@ export async function onRequestPost({ request, env }) {
   if (typeof prompt !== 'string' || !prompt || prompt.length > 20000) return json({ error: 'bad_request' }, 400);
 
   for (const model of MODELS) {
-    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+    const generationConfig = { responseMimeType: 'application/json', temperature: 0.4 };
+    if (model.thinking) generationConfig.thinkingConfig = model.thinking;
+    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model.id}:generateContent`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: { responseMimeType: 'application/json', temperature: 0.4 },
-      }),
+      body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig }),
+      signal: AbortSignal.timeout(PER_TRY_MS),
     }).catch(() => null);
     if (!r || !r.ok) continue;
     const d = await r.json().catch(() => ({}));
