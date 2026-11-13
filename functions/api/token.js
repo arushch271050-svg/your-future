@@ -14,7 +14,8 @@ export async function onRequestPost({ request, env }) {
       expireTime: new Date(now + 30 * 60 * 1000).toISOString(),
       newSessionExpireTime: new Date(now + 2 * 60 * 1000).toISOString(),
     }),
-  });
+  }).catch(() => null);
+  if (!r) return json({ error: 'network_error' }, 502);
   const d = await r.json().catch(() => ({}));
   if (!r.ok || !d.name) {
     const e = d.error || {};
